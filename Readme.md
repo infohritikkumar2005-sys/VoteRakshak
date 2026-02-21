@@ -264,17 +264,15 @@ MIT License
 
 👤 Authors
 
-Team Secure Chain
+Team Null Pointersss
 
-Sourabh Lodhi
+Hritik Kumar
 
-Abhishek Singh
+Aditya
 
-Ankit Chaurasiya
+Aryan Tyagi
 
-Harshit Garg
-
-Kajal Sisodiya
+Khushi Bhaskar
 
 ⭐ Final Note
 
