@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Candidate List</title>
+<link rel="stylesheet" href="style.css">
+
+<style>
+.candidate-item{
+ display:flex;justify-content:space-between;
+ padding:10px 15px;border:1px solid #ddd;border-radius:6px;
+ margin-bottom:10px;background:#f8faff;font-size:18px;
+ transition:.2s;align-items:center;
+}
+.candidate-item:hover{background:#e9f3ff}
+.vote-badge{
+ background:#0a3475;color:white;padding:4px 10px;border-radius:6px;
+ font-size:14px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="strip"></div>
+
+<header class="gov-header">
+ <div style="display:flex;align-items:center;gap:10px;">
+    <img class="ashoka" src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/55/Emblem_of_India.svg/500px-Emblem_of_India.svg.png" alt="" width="45">
+    <div><b>Vote Rakshak Portal</b><br><span style="font-size:13px;">Registered Candidates</span></div>
+ </div>
+
+ <nav class="top-links">
+    <a href="/">Home</a>
+    <a href="/voter">Vote</a>
+    <a href="/results">Results</a>
+ </nav>
+</header>
+
+<div class="container">
+<div class="card">
+<h2 style="text-align:center;color:#0a3475;margin-bottom:15px;">Candidates List</h2>
+
+<div id="list"></div>
+
+<button class="btn" style="margin-top:20px" onclick="location.href='voter'">
+   Vote Now
+</button>
+
+</div>
+</div>
+
+<script>
+async function load(){
+ const res = await fetch("/candidates");
+ const data = await res.json();
+
+ const box = document.getElementById("list");
+ box.innerHTML="";
+
+ data.forEach(c=>{
+   box.innerHTML += `
+     <div class="candidate-item">
+        <span><b>${c.id}. ${c.name}</b></span>
+        <span class="vote-badge">${c.votes} Votes</span>
+     </div>
+   `;
+ });
+}
+load();
+</script>
+
+</body>
+</html>

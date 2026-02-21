@@ -1,0 +1,211 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cast Vote - Election Portal</title>
+<link rel="stylesheet" href="style.css">
+
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+
+<style>
+.video-wrap{
+ width:260px;height:200px;background:#000;margin-top:10px;border-radius:10px;
+ border:2px solid #777;overflow:hidden;position:relative;transition:.3s;
+}
+.video-wrap.active{border-color:#00c853;box-shadow:0 0 10px #00c853;}
+.video-wrap.idle{border-color:#ff9800;}
+.countdown{
+ position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+ background:#0008;color:#fff;font-size:32px;padding:8px 18px;border-radius:50%;
+ display:none;
+}
+</style>
+</head>
+
+<body>
+
+<div class="strip"></div>
+<header class="gov-header">
+ <div style="display:flex;align-items:center;gap:10px">
+   <img class="ashoka" src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/55/Emblem_of_India.svg/500px-Emblem_of_India.svg.png">
+   <div><b>Vote Rakshak</b><br><small>Decentralised Voting System</small></div>
+ </div>
+ <nav class="top-links">
+   <a href="/">Home</a>
+   <a href="/results">Results</a>
+   <a href="/admin">Admin</a>
+ </nav>
+</header>
+
+<div class="container">
+<div class="card grid">
+
+<!-- LEFT -->
+<div>
+<label class="label">Enrollment Number</label>
+<input id="enroll" class="input" placeholder="Enter enrollment">
+
+<label class="label">Face Verification</label>
+
+<div class="video-wrap idle" id="camBox">
+ <video id="video" autoplay playsinline></video>
+ <div id="countdown" class="countdown">3</div>
+</div>
+
+<button id="cap" class="btn" style="margin-top:10px">Capture</button>
+<button id="cast" class="btn secondary" style="margin-top:10px">Submit Vote</button>
+
+<div id="previewBox" style="display:none;margin-top:10px;text-align:center">
+ <p>Captured Face:</p>
+ <img id="preview" style="width:160px;border-radius:10px;border:2px solid green;">
+</div>
+
+<p id="msg" style="margin-top:10px;color:#d32f2f"></p>
+</div>
+
+<!-- RIGHT -->
+<div>
+<h3>Select Candidate</h3>
+<p style="height:10px"></p>
+<div id="cList"></div>
+</div>
+
+</div>
+</div>
+
+
+<script>
+let captured=null, stable=0;
+let autoEnabled=false, autoDone=false, enrollTimer=null;
+
+const video=document.getElementById("video");
+const camBox=document.getElementById("camBox");
+const countdown=document.getElementById("countdown");
+const preview=document.getElementById("preview");
+const msg=document.getElementById("msg");
+
+/* ---------------- Camera Start ---------------- */
+navigator.mediaDevices.getUserMedia({video:true}).then(s=>{
+ video.srcObject=s;
+ detect();
+});
+
+/* FaceMesh */
+const mesh=new FaceMesh({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}`});
+mesh.setOptions({maxNumFaces:1,minDetectionConfidence:0.55,minTrackingConfidence:0.55});
+
+mesh.onResults(r=>{
+ if(r.multiFaceLandmarks.length){
+    stable++;
+    camBox.classList.add("active"); camBox.classList.remove("idle");
+
+    if(stable>25 && autoEnabled && !autoDone && !captured){
+        autoDone=true;
+        startTimer();
+    }
+ }else{
+    stable=0;
+    camBox.classList.remove("active");
+    camBox.classList.add("idle");
+ }
+});
+
+
+async function detect(){
+ const cam=new Camera(video,{onFrame:async()=>await mesh.send({image:video})});
+ cam.start();
+}
+
+/* 🔥 Enrollment stop-typing based activation */
+document.getElementById("enroll").addEventListener("input",()=>{
+ autoEnabled=false;
+ autoDone=false;
+ captured=null;
+ previewBox.style.display="none";
+
+ if(enrollTimer) clearTimeout(enrollTimer);
+
+ enrollTimer=setTimeout(()=>{
+   if(enroll.value.trim()!=""){
+      autoEnabled=true;
+      console.log("✔ Auto capture unlocked");
+   }
+ },1000);  // waits 1s after typing stopped
+});
+
+
+/* Auto Capture Countdown */
+function startTimer(){
+ let s=3;
+ countdown.innerText=s; countdown.style.display="flex";
+ let t=setInterval(()=>{
+  s--; countdown.innerText=s;
+  if(s<=0){clearInterval(t);countdown.style.display="none";capture();}
+ },700);
+}
+
+/* Manual Capture */
+document.getElementById("cap").onclick=capture;
+function capture(){
+ const c=document.createElement("canvas");
+ c.width=video.videoWidth;c.height=video.videoHeight;
+ let x=c.getContext("2d");
+ x.translate(c.width,0); x.scale(-1,1);
+ x.drawImage(video,0,0);
+
+ captured=c.toDataURL("image/jpeg",0.9);
+ preview.src=captured;
+ previewBox.style.display="block";
+ msg.style.color="green"; msg.innerText="Face Captured ✔";
+}
+
+/* Load Candidates (Preserve selection) */
+async function load(){
+ let prev=document.querySelector("input[name=cand]:checked");
+ let val=prev?prev.value:null;
+
+ let r=await fetch("/candidates"); let d=await r.json();
+ cList.innerHTML="";
+
+ d.forEach(c=>{
+  cList.innerHTML+=`
+  <label class="candidate">
+     <input type="radio" name="cand" value="${c.id}">
+     <b>${c.name}</b>
+     <span class="badge">${c.votes}</span>
+  </label>`;
+ });
+
+ if(val){
+   let rb=document.querySelector(`input[value='${val}']`);
+   if(rb) rb.checked=true;
+ }
+}
+load(); setInterval(load,3000);
+
+/* Submit Vote */
+document.getElementById("cast").onclick=async()=>{
+ let e=enroll.value.trim();
+ let s=document.querySelector("input[name=cand]:checked");
+
+ if(!e) return msg.innerText="Enter Enrollment Number";
+ if(!captured) return msg.innerText="Capture Face First";
+ if(!s) return msg.innerText="Select a Candidate";
+
+ let fd=new FormData();
+ fd.append("enrollment",e);
+ fd.append("candidate_id",s.value);
+ fd.append("image",captured);
+
+ let r=await fetch("/vote",{method:"POST",body:fd});
+ let d=await r.json();
+
+ msg.style.color= r.ok?"green":"red";
+ msg.innerText= r.ok?"Vote Submitted Successfully ✔":"❌ "+(d.error || "Failed");
+};
+</script>
+</body>
+</html>

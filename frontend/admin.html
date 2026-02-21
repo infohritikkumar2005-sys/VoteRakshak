@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Dashboard</title>
+<link rel="stylesheet" href="style.css">
+
+<style>
+.table{
+ width:100%;border-collapse:collapse;margin-top:15px;
+}
+.table th,.table td{
+ border:1px solid #ddd;padding:8px;text-align:left;
+}
+.table th{background:#0a3475;color:white;}
+input,button{margin-top:10px;}
+.sec{margin-top:30px;}
+</style>
+</head>
+
+<body>
+
+<div class="strip"></div>
+
+<header class="gov-header">
+ <div style="display:flex;align-items:center;gap:10px">
+   <img class="ashoka" src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/55/Emblem_of_India.svg/500px-Emblem_of_India.svg.png">
+   <div><b>Admin Panel</b><br><small>Vote-Rakshak System</small></div>
+ </div>
+ <nav class="top-links">
+  <a href="/">Home</a>
+  <a href="/results">Results</a>
+  <a onclick="logout()" style="cursor:pointer">Logout</a>
+ </nav>
+</header>
+
+<div class="container">
+<div class="card">
+
+<h2 style="color:#0a3475;text-align:center;">Admin Dashboard</h2>
+
+<!-- Add Candidate -->
+<div class="sec">
+<h3>Add Candidate</h3>
+<input id="cname" class="input" placeholder="Candidate Name" style="width:240px;">
+<button class="btn" onclick="addCandidate()">Add</button>
+<p id="msg1" class="small"></p>
+</div>
+
+<!-- View Candidates -->
+<div class="sec">
+<h3>All Candidates</h3>
+<table class="table" id="candTable"></table>
+</div>
+
+<!-- Voters List -->
+<div class="sec">
+<h3>Registered Voters</h3>
+<button class="btn secondary" onclick="openVoter()">+ Register New Voter</button>
+
+<script>
+function openVoter(){
+  const token = localStorage.getItem("admin_token");
+  if(!token){
+    alert("Login expired");
+    location.href="/admin";
+    return;
+  }
+  window.location.href = "/voter?token=" + token;
+}
+</script>
+
+<table class="table" id="voterTable"></table>
+</div>
+
+</div>
+</div>
+
+<script>
+// check token
+if(!localStorage.getItem("admin_token")){
+ alert("Login Required!");
+ location.href="/admin";
+}
+
+// Load candidates
+async function loadCandidates(){
+ try{
+  let r=await fetch("/candidates");
+  if(!r.ok) {
+   console.error("Failed to fetch candidates:", r.status);
+   return;
+  }
+  let d=await r.json();
+  console.log("Candidates:", d);
+  let t=document.getElementById("candTable");
+  t.innerHTML="<tr><th>ID</th><th>Name</th><th>Votes</th></tr>";
+  if(!d || d.length===0) {
+   t.innerHTML+="<tr><td colspan='3' style='text-align:center;'>No candidates added yet</td></tr>";
+   return;
+  }
+  d.forEach(c=>{
+   t.innerHTML+=`<tr><td>${c.id}</td><td>${c.name}</td><td>${c.votes}</td></tr>`;
+  });
+ }catch(e){
+  console.error("loadCandidates error:", e);
+ }
+}
+loadCandidates();
+setInterval(loadCandidates, 2000);
+
+// Load voters
+async function loadVoters(){
+ let r=await fetch("/admin/voters",{headers:{Authorization:"Bearer "+localStorage.getItem("admin_token")}});
+ if(!r.ok) return;
+ let d=await r.json();
+ let t=document.getElementById("voterTable");
+ t.innerHTML="<tr><th>ID</th><th>Enrollment</th><th>Name</th></tr>";
+ if(d.length===0) t.innerHTML+="<tr><td colspan='3' style='text-align:center;'>No voters registered yet</td></tr>";
+ d.forEach(v=>{
+  t.innerHTML+=`<tr><td>${v.id}</td><td>${v.enrollment}</td><td>${v.name}</td></tr>`;
+ });
+}
+loadVoters();
+setInterval(loadVoters, 2000);
+
+// add candidate
+async function addCandidate(){
+ let name=cname.value.trim();
+ if(!name) return msg1.innerText="Enter name";
+ msg1.innerText="Processing...";
+ let r=await fetch("/admin/add_candidate",{
+  method:"POST",
+  headers:{
+    "Content-Type":"application/json",
+    Authorization:"Bearer "+localStorage.getItem("admin_token")
+  },
+  body:JSON.stringify({name})
+ });
+ let d=await r.json();
+ if(r.ok){
+   msg1.style.color="green"; msg1.innerText="Added ✔";
+   cname.value=""; loadCandidates();
+ }else msg1.innerText=d.error;
+}
+
+// logout
+function logout(){
+ localStorage.removeItem("admin_token");
+ location.href="/admin";
+}
+</script>
+</body>
+</html>
