@@ -1,0 +1,625 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Cast Your Vote - Vote Rakshak V2</title>
+  <link rel="stylesheet" href="style.css">
+
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+  <style>
+    .video-wrap {
+      width: 260px;
+      height: 200px;
+      background: #000;
+      margin-top: 10px;
+      border-radius: 10px;
+      border: 2px solid #777;
+      overflow: hidden;
+      position: relative;
+      transition: .3s;
+    }
+
+    .video-wrap.active {
+      border-color: #00c853;
+      box-shadow: 0 0 10px #00c853;
+    }
+
+    .video-wrap.idle {
+      border-color: #ff9800;
+    }
+
+    .countdown {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: #0008;
+      color: #fff;
+      font-size: 32px;
+      padding: 8px 18px;
+      border-radius: 50%;
+      display: none;
+    }
+
+    .election-selector {
+      background: #fff;
+      border: 2px solid #0a3475;
+      border-radius: 10px;
+      padding: 15px;
+      margin-bottom: 20px;
+    }
+
+    .election-selector select {
+      width: 100%;
+      padding: 10px;
+      font-size: 16px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      margin-top: 8px;
+    }
+
+    .phase-badge {
+      display: inline-block;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-weight: bold;
+      font-size: 14px;
+      margin-left: 10px;
+    }
+
+    .phase-CREATED {
+      background: #9e9e9e;
+      color: #fff;
+    }
+
+    .phase-ACTIVE {
+      background: #4caf50;
+      color: #fff;
+    }
+
+    .phase-ENDED {
+      background: #f44336;
+      color: #fff;
+    }
+
+    .phase-RESULT_DECLARED {
+      background: #2196f3;
+      color: #fff;
+    }
+
+    .disabled-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.7);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      font-weight: bold;
+      text-align: center;
+      border-radius: 10px;
+      z-index: 10;
+    }
+
+    .vote-receipt {
+      background: #e8f5e9;
+      border: 2px solid #4caf50;
+      border-radius: 10px;
+      padding: 15px;
+      margin-top: 15px;
+      display: none;
+    }
+
+    .vote-receipt h4 {
+      color: #2e7d32;
+      margin-bottom: 10px;
+    }
+
+    .vote-receipt code {
+      display: block;
+      background: #fff;
+      padding: 8px;
+      border-radius: 4px;
+      word-break: break-all;
+      font-size: 12px;
+      margin: 5px 0;
+    }
+
+    .btn-pdf {
+      background: #dc3545;
+      color: #fff;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 12px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 14px;
+      transition: background 0.2s;
+    }
+
+    .btn-pdf:hover {
+      background: #c82333;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="strip"></div>
+  <header class="gov-header">
+    <div style="display:flex;align-items:center;gap:10px">
+      <img class="ashoka"
+        src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/55/Emblem_of_India.svg/500px-Emblem_of_India.svg.png">
+      <div><b>Vote Rakshak V2</b><br><small>Decentralised Voting System</small></div>
+    </div>
+    <nav class="top-links">
+      <a href="/">Home</a>
+      <a href="/results">Results</a>
+      <a href="/verify">Verify Vote</a>
+      <a href="/admin">Admin</a>
+    </nav>
+  </header>
+
+  <div class="container">
+
+    <!-- Election Selector -->
+    <div class="election-selector">
+      <label style="font-weight:bold;color:#0a3475;">
+        Select Election
+        <span id="phaseIndicator" class="phase-badge phase-CREATED">LOADING...</span>
+      </label>
+      <select id="electionSelect" onchange="loadElectionData()">
+        <option value="">-- Loading Elections --</option>
+      </select>
+    </div>
+
+    <div class="card grid" style="position:relative;">
+      <div id="votingDisabled" class="disabled-overlay" style="display:none;">
+        <div>
+          <p>Voting is currently disabled</p>
+          <p id="disabledReason" style="font-size:14px;margin-top:5px;"></p>
+        </div>
+      </div>
+
+      <!-- LEFT -->
+      <div>
+        <label class="label">Enrollment Number</label>
+        <input id="enroll" class="input" placeholder="Enter enrollment">
+
+        <label class="label">Face Verification</label>
+
+        <div class="video-wrap idle" id="camBox" style="position:relative;">
+          <video id="video" autoplay playsinline></video>
+          <div id="countdown" class="countdown">3</div>
+          <div id="livenessOverlay"
+            style="position:absolute; bottom:10px; left:50%; transform:translateX(-50%); text-align:center; background:rgba(0,0,0,0.7); color:#fff; font-size:13px; font-weight:bold; padding:6px 14px; border-radius:20px; display:none; white-space:nowrap; border: 1px solid rgba(255,255,255,0.2); box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
+            ⚠️ System Active
+          </div>
+        </div>
+
+        <button id="cap" class="btn" style="margin-top:10px">Capture</button>
+        <button id="cast" class="btn secondary" style="margin-top:10px">Submit Vote</button>
+
+        <div id="previewBox" style="display:none;margin-top:10px;text-align:center">
+          <p>Captured Face:</p>
+          <img id="preview" style="width:160px;border-radius:10px;border:2px solid green;">
+        </div>
+
+        <p id="msg" style="margin-top:10px;color:#d32f2f"></p>
+
+        <!-- Vote Receipt Display -->
+        <div id="voteReceipt" class="vote-receipt">
+          <h4>✅ Vote Receipt</h4>
+          <p><strong>Receipt ID:</strong> <code id="receiptId"></code></p>
+          <p><strong>Transaction Hash:</strong> <code id="txHash"></code></p>
+          <p><strong>Block Number:</strong> <code id="blockNum"></code></p>
+          <button class="btn-pdf" onclick="downloadPDF()">📄 Download PDF Receipt</button>
+          <p style="font-size:12px;color:#666;margin-top:10px;">
+            Save this receipt! You can verify your vote at <a href="/verify">/verify</a>
+          </p>
+        </div>
+      </div>
+
+      <!-- RIGHT -->
+      <div>
+        <h3>Select Candidate</h3>
+        <p id="noActiveMsg" style="color:#f44336;display:none;">
+          Election is not active. Please wait for admin to start the election.
+        </p>
+        <div id="cList"></div>
+      </div>
+
+    </div>
+  </div>
+
+
+  <script>
+    let captured = null, stable = 0;
+    let autoEnabled = false, autoDone = false, enrollTimer = null;
+    let selectedElectionId = null;
+    let currentPhase = "CREATED";
+
+    let livenessState = 0; // 0: Turn Head, 1: Blink, 2: Done
+    let isEyeClosed = false;
+
+    const video = document.getElementById("video");
+    const camBox = document.getElementById("camBox");
+    const countdown = document.getElementById("countdown");
+    const preview = document.getElementById("preview");
+    const msg = document.getElementById("msg");
+    const livenessOverlay = document.getElementById("livenessOverlay");
+
+    /* EAR Helper for Liveness Detection */
+    function getEAR(eye, landmarks) {
+      const p1 = landmarks[eye[0]];
+      const p2 = landmarks[eye[1]];
+      const p3 = landmarks[eye[2]];
+      const p4 = landmarks[eye[3]];
+      const p5 = landmarks[eye[4]];
+      const p6 = landmarks[eye[5]];
+
+      const v1 = Math.hypot(p2.x - p6.x, p2.y - p6.y);
+      const v2 = Math.hypot(p3.x - p5.x, p3.y - p5.y);
+      const h = Math.hypot(p1.x - p4.x, p1.y - p4.y);
+      return (v1 + v2) / (2.0 * h);
+    }
+    const leftEyeIdx = [362, 385, 387, 263, 373, 380];
+    const rightEyeIdx = [33, 160, 158, 133, 153, 144];
+
+    /* Load Elections */
+    async function loadElections() {
+      try {
+        const res = await fetch("/api/elections");
+        const elections = await res.json();
+
+        const select = document.getElementById("electionSelect");
+        select.innerHTML = "";
+
+        if (elections.length === 0) {
+          select.innerHTML = '<option value="">No elections available</option>';
+          return;
+        }
+
+        elections.forEach(e => {
+          const opt = document.createElement("option");
+          opt.value = e.id;
+          opt.textContent = `${e.name} (${e.phase})`;
+          select.appendChild(opt);
+        });
+
+        // Select first active election if any, else first
+        const active = elections.find(e => e.phase === 'ACTIVE');
+        const selected = active || elections[0];
+        select.value = selected.id;
+        selectedElectionId = selected.id;
+        loadElectionData();
+
+      } catch (e) {
+        console.error("Failed to load elections:", e);
+      }
+    }
+
+    /* Load Election Data */
+    async function loadElectionData() {
+      const select = document.getElementById("electionSelect");
+      selectedElectionId = parseInt(select.value);
+
+      if (!selectedElectionId) return;
+
+      try {
+        const res = await fetch(`/api/elections/${selectedElectionId}`);
+        const election = await res.json();
+        currentPhase = election.phase;
+
+        const indicator = document.getElementById("phaseIndicator");
+        indicator.textContent = currentPhase;
+        indicator.className = `phase-badge phase-${currentPhase}`;
+
+        const overlay = document.getElementById("votingDisabled");
+        const reason = document.getElementById("disabledReason");
+        const noActive = document.getElementById("noActiveMsg");
+
+        if (currentPhase !== "ACTIVE") {
+          overlay.style.display = "flex";
+          noActive.style.display = "block";
+          if (currentPhase === "CREATED") reason.textContent = "Election has not started yet";
+          else if (currentPhase === "ENDED") reason.textContent = "Election has ended";
+          else reason.textContent = "Results have been declared";
+        } else {
+          overlay.style.display = "none";
+          noActive.style.display = "none";
+        }
+
+        loadCandidates();
+
+      } catch (e) {
+        console.error("Failed to load election:", e);
+      }
+    }
+
+    /* Load Candidates */
+    async function loadCandidates() {
+      if (!selectedElectionId) return;
+
+      try {
+        const res = await fetch(`/api/elections/${selectedElectionId}/candidates`);
+        const candidates = await res.json();
+
+        const cList = document.getElementById("cList");
+        cList.innerHTML = "";
+
+        if (candidates.length === 0) {
+          cList.innerHTML = '<p style="color:#666;">No candidates added yet</p>';
+          return;
+        }
+
+        candidates.forEach(c => {
+          cList.innerHTML += `
+     <label class="candidate">
+       <input type="radio" name="cand" value="${c.id}">
+       <b>${c.name}</b>
+       <span class="badge">${c.votes}</span>
+     </label>`;
+        });
+
+      } catch (e) {
+        console.error("Failed to load candidates:", e);
+      }
+    }
+
+    /* Camera Start */
+    navigator.mediaDevices.getUserMedia({ video: true }).then(s => {
+      video.srcObject = s;
+      detect();
+    });
+
+    /* FaceMesh */
+    const mesh = new FaceMesh({ locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}` });
+    mesh.setOptions({ maxNumFaces: 1, minDetectionConfidence: 0.55, minTrackingConfidence: 0.55 });
+
+    mesh.onResults(r => {
+      if (r.multiFaceLandmarks.length) {
+        camBox.classList.add("active"); camBox.classList.remove("idle");
+
+        if (autoEnabled && !autoDone && !captured) {
+          livenessOverlay.style.display = "block";
+
+          const lmk = r.multiFaceLandmarks[0];
+
+          if (livenessState === 0) {
+            livenessOverlay.innerHTML = "👤 Please <b style='color:#00ff88;'>TURN HEAD</b> slightly (Left/Right)";
+
+            // Check Yaw (Nose vs Cheeks)
+            const nose = lmk[1];
+            const leftCheek = lmk[234];
+            const rightCheek = lmk[454];
+
+            const distLeft = Math.abs(nose.x - leftCheek.x);
+            const distRight = Math.abs(nose.x - rightCheek.x);
+            const ratio = distLeft / (distRight + 0.0001);
+
+            // Normal is ~1.0. Turned is > 1.7 or < 0.6
+            if (ratio < 0.55 || ratio > 1.8) {
+              livenessState = 1; // move to blink
+            }
+          } else if (livenessState === 1) {
+            livenessOverlay.innerHTML = "👁️ Look straight and <b style='color:#00ff88;'>BLINK</b> slowly";
+
+            const leftEAR = getEAR(leftEyeIdx, lmk);
+            const rightEAR = getEAR(rightEyeIdx, lmk);
+            const avgEAR = (leftEAR + rightEAR) / 2.0;
+
+            if (avgEAR < 0.22) {
+              isEyeClosed = true;
+            } else if (isEyeClosed && avgEAR > 0.25) {
+              livenessState = 2; // done
+              livenessOverlay.innerHTML = "✅ Liveness Verified! Hold Still...";
+              livenessOverlay.style.color = "#00ff88";
+              livenessOverlay.style.background = "rgba(0,0,0,0.8)";
+            }
+          } else if (livenessState === 2) {
+            stable++;
+            if (stable > 25) {
+              autoDone = true;
+              startTimer();
+            }
+          }
+        } else {
+          livenessOverlay.style.display = "none";
+        }
+      } else {
+        stable = 0;
+        camBox.classList.remove("active");
+        camBox.classList.add("idle");
+        livenessOverlay.style.display = "none";
+      }
+    });
+
+    async function detect() {
+      const cam = new Camera(video, { onFrame: async () => await mesh.send({ image: video }) });
+      cam.start();
+    }
+
+    /* Enrollment typing activation */
+    document.getElementById("enroll").addEventListener("input", () => {
+      autoEnabled = false;
+      autoDone = false;
+      captured = null;
+      livenessState = 0;
+      isEyeClosed = false;
+      stable = 0;
+      previewBox.style.display = "none";
+
+      if (enrollTimer) clearTimeout(enrollTimer);
+
+      enrollTimer = setTimeout(() => {
+        if (enroll.value.trim() != "") {
+          autoEnabled = true;
+        }
+      }, 1000);
+    });
+
+    /* Auto Capture Countdown */
+    function startTimer() {
+      let s = 3;
+      countdown.innerText = s; countdown.style.display = "flex";
+      let t = setInterval(() => {
+        s--; countdown.innerText = s;
+        if (s <= 0) { clearInterval(t); countdown.style.display = "none"; capture(); }
+      }, 700);
+    }
+
+    /* Manual Capture */
+    document.getElementById("cap").onclick = capture;
+    function capture() {
+      const c = document.createElement("canvas");
+      c.width = video.videoWidth; c.height = video.videoHeight;
+      let x = c.getContext("2d");
+      x.translate(c.width, 0); x.scale(-1, 1);
+      x.drawImage(video, 0, 0);
+
+      captured = c.toDataURL("image/jpeg", 0.9);
+      preview.src = captured;
+      previewBox.style.display = "block";
+      livenessOverlay.style.display = "none"; // Hide after capture
+      msg.style.color = "green"; msg.innerText = "Face Captured & Verified ✓";
+    }
+
+    /* Submit Vote */
+    document.getElementById("cast").onclick = async () => {
+      if (currentPhase !== "ACTIVE") {
+        msg.style.color = "red";
+        msg.innerText = "Voting is not active for this election";
+        return;
+      }
+
+      let e = enroll.value.trim();
+      let s = document.querySelector("input[name=cand]:checked");
+
+      if (!e) return msg.innerText = "Enter Enrollment Number";
+      if (!captured) return msg.innerText = "Capture Face First";
+      if (!s) return msg.innerText = "Select a Candidate";
+
+      msg.style.color = "blue";
+      msg.innerText = "Processing vote on blockchain...";
+
+      let fd = new FormData();
+      fd.append("enrollment", e);
+      fd.append("candidate_id", s.value);
+      fd.append("image", captured);
+      fd.append("election_id", selectedElectionId);
+
+      try {
+        let r = await fetch(`/api/elections/${selectedElectionId}/vote`, { method: "POST", body: fd });
+        let d = await r.json();
+
+        if (r.ok) {
+          msg.style.color = "green";
+          msg.innerText = "✅ Vote Submitted Successfully!";
+
+          document.getElementById("voteReceipt").style.display = "block";
+          document.getElementById("receiptId").textContent = d.receipt_id;
+          document.getElementById("txHash").textContent = d.tx;
+          document.getElementById("blockNum").textContent = d.block_number;
+
+          loadCandidates();
+        } else {
+          msg.style.color = "red";
+          msg.innerText = d.error || "Vote failed";
+        }
+      } catch (err) {
+        msg.style.color = "red";
+        msg.innerText = "Network error: " + err.message;
+      }
+    };
+
+    /* Generate PDF Receipt */
+    function downloadPDF() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+
+      const receiptId = document.getElementById("receiptId").textContent;
+      const txHash = document.getElementById("txHash").textContent;
+      const blockNum = document.getElementById("blockNum").textContent;
+      const dateStr = new Date().toLocaleString();
+
+      // Header
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(22);
+      doc.setTextColor(10, 52, 117); // Navy Blue
+      doc.text("Vote Rakshak V2", 105, 20, null, null, "center");
+
+      doc.setFontSize(16);
+      doc.setTextColor(46, 125, 50); // Green
+      doc.text("Cryptographic Vote Receipt", 105, 30, null, null, "center");
+
+      // Line separator
+      doc.setDrawColor(200);
+      doc.line(20, 38, 190, 38);
+
+      // Body content
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(12);
+      doc.setTextColor(50, 50, 50);
+
+      doc.text("Date & Time: " + dateStr, 20, 50);
+      doc.text("Status: SUCCESS (Verified on Ethereum Blockchain)", 20, 60);
+
+      // Labels & values
+      doc.setFont("helvetica", "bold");
+      doc.text("Receipt ID:", 20, 80);
+      doc.setFont("courier", "normal");
+      doc.setFontSize(10);
+      doc.text(receiptId, 20, 88);
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(12);
+      doc.text("Transaction Hash:", 20, 105);
+      doc.setFont("courier", "normal");
+      doc.setFontSize(10);
+      const splitTx = doc.splitTextToSize(txHash, 170);
+      doc.text(splitTx, 20, 113);
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(12);
+      doc.text("Block Number:", 20, 130);
+      doc.setFont("courier", "normal");
+      doc.text(blockNum, 60, 130);
+
+      // Footer
+      doc.setDrawColor(200);
+      doc.line(20, 150, 190, 150);
+
+      doc.setFont("helvetica", "italic");
+      doc.setFontSize(10);
+      doc.setTextColor(100, 100, 100);
+      doc.text("This receipt is cryptographically verifiable.", 105, 160, null, null, "center");
+      doc.text("You can verify your vote anytime at the /verify portal.", 105, 166, null, null, "center");
+      doc.text("Keep this document safe as proof of your democratic participation.", 105, 172, null, null, "center");
+
+      // Save it
+      doc.save("Vote_Receipt_" + receiptId.substring(0, 8) + ".pdf");
+    }
+
+    /* Initialize */
+    loadElections();
+    setInterval(loadCandidates, 5000);
+    setInterval(loadElectionData, 10000);
+  </script>
+</body>
+
+</html>

@@ -1,155 +1,561 @@
 <!doctype html>
 <html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Admin Dashboard</title>
-<link rel="stylesheet" href="style.css">
 
-<style>
-.table{
- width:100%;border-collapse:collapse;margin-top:15px;
-}
-.table th,.table td{
- border:1px solid #ddd;padding:8px;text-align:left;
-}
-.table th{background:#0a3475;color:white;}
-input,button{margin-top:10px;}
-.sec{margin-top:30px;}
-</style>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard - Vote Rakshak V2</title>
+  <link rel="stylesheet" href="style.css">
+
+  <style>
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+    }
+
+    .table th,
+    .table td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: left;
+    }
+
+    .table th {
+      background: #0a3475;
+      color: white;
+    }
+
+    input,
+    button {
+      margin-top: 10px;
+    }
+
+    .sec {
+      margin-top: 30px;
+    }
+
+    .election-card {
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      padding: 15px;
+      margin-bottom: 15px;
+      border-left: 5px solid #0a3475;
+    }
+
+    .election-card h4 {
+      color: #0a3475;
+      margin-bottom: 10px;
+    }
+
+    .election-card .phase {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 15px;
+      font-size: 12px;
+      font-weight: bold;
+      margin-left: 10px;
+    }
+
+    .phase-CREATED {
+      background: #9e9e9e;
+      color: #fff;
+    }
+
+    .phase-ACTIVE {
+      background: #4caf50;
+      color: #fff;
+    }
+
+    .phase-ENDED {
+      background: #f44336;
+      color: #fff;
+    }
+
+    .phase-RESULT_DECLARED {
+      background: #2196f3;
+      color: #fff;
+    }
+
+    .election-actions {
+      margin-top: 10px;
+    }
+
+    .election-actions button {
+      margin-right: 8px;
+      padding: 6px 12px;
+      font-size: 12px;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+
+    .stat-card {
+      background: linear-gradient(135deg, #0a3475, #1565c0);
+      color: #fff;
+      padding: 20px;
+      border-radius: 10px;
+      text-align: center;
+    }
+
+    .stat-card h3 {
+      font-size: 28px;
+      margin: 0;
+    }
+
+    .stat-card p {
+      font-size: 14px;
+      opacity: 0.9;
+      margin-top: 5px;
+    }
+
+    .tab-container {
+      margin-top: 20px;
+    }
+
+    .tabs {
+      display: flex;
+      border-bottom: 2px solid #0a3475;
+    }
+
+    .tab {
+      padding: 12px 24px;
+      cursor: pointer;
+      background: #f5f5f5;
+      border: none;
+      font-weight: bold;
+      color: #666;
+    }
+
+    .tab.active {
+      background: #0a3475;
+      color: #fff;
+    }
+
+    .tab-content {
+      display: none;
+      padding: 20px 0;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+  </style>
 </head>
 
 <body>
 
-<div class="strip"></div>
+  <div class="strip"></div>
 
-<header class="gov-header">
- <div style="display:flex;align-items:center;gap:10px">
-   <img class="ashoka" src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/55/Emblem_of_India.svg/500px-Emblem_of_India.svg.png">
-   <div><b>Admin Panel</b><br><small>Vote-Rakshak System</small></div>
- </div>
- <nav class="top-links">
-  <a href="/">Home</a>
-  <a href="/results">Results</a>
-  <a onclick="logout()" style="cursor:pointer">Logout</a>
- </nav>
-</header>
+  <header class="gov-header">
+    <div style="display:flex;align-items:center;gap:10px">
+      <img class="ashoka"
+        src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/55/Emblem_of_India.svg/500px-Emblem_of_India.svg.png">
+      <div><b>Admin Panel V2</b><br><small>Vote-Rakshak System</small></div>
+    </div>
+    <nav class="top-links">
+      <a href="/">Home</a>
+      <a href="/results">Results</a>
+      <a href="/verify">Verify</a>
+      <a onclick="logout()" style="cursor:pointer">Logout</a>
+    </nav>
+  </header>
 
-<div class="container">
-<div class="card">
+  <div class="container">
+    <div class="card">
 
-<h2 style="color:#0a3475;text-align:center;">Admin Dashboard</h2>
+      <h2 style="color:#0a3475;text-align:center;">Admin Dashboard</h2>
 
-<!-- Add Candidate -->
-<div class="sec">
-<h3>Add Candidate</h3>
-<input id="cname" class="input" placeholder="Candidate Name" style="width:240px;">
-<button class="btn" onclick="addCandidate()">Add</button>
-<p id="msg1" class="small"></p>
-</div>
+      <!-- Stats -->
+      <div class="stats-grid" id="statsGrid">
+        <div class="stat-card">
+          <h3 id="totalElections">0</h3>
+          <p>Total Elections</p>
+        </div>
+        <div class="stat-card">
+          <h3 id="totalVoters">0</h3>
+          <p>Registered Voters</p>
+        </div>
+        <div class="stat-card">
+          <h3 id="activeElections">0</h3>
+          <p>Active Elections</p>
+        </div>
+      </div>
 
-<!-- View Candidates -->
-<div class="sec">
-<h3>All Candidates</h3>
-<table class="table" id="candTable"></table>
-</div>
+      <!-- Tabs -->
+      <div class="tab-container">
+        <div class="tabs">
+          <button class="tab active" onclick="showTab('elections')">Elections</button>
+          <button class="tab" onclick="showTab('candidates')">Candidates</button>
+          <button class="tab" onclick="showTab('voters')">Voters</button>
+        </div>
 
-<!-- Voters List -->
-<div class="sec">
-<h3>Registered Voters</h3>
-<button class="btn secondary" onclick="openVoter()">+ Register New Voter</button>
+        <!-- Elections Tab -->
+        <div id="elections-tab" class="tab-content active">
+          <h3>Create New Election</h3>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+            <input id="electionName" class="input" placeholder="Election Name" style="width:200px;">
+            <input id="electionDesc" class="input" placeholder="Description" style="width:300px;">
+            <input type="datetime-local" id="electionExpiry" class="input" title="Optional: Set End Time">
+            <label style="display:flex;align-items:center;gap:5px;font-size:14px;color:#333;cursor:pointer;">
+              <input type="checkbox" id="isLiveResults" checked> Live Results
+            </label>
+            <button class="btn" onclick="createElection()">Create</button>
+          </div>
+          <p id="electionMsg" class="small" style="margin-top:10px;"></p>
 
-<script>
-function openVoter(){
-  const token = localStorage.getItem("admin_token");
-  if(!token){
-    alert("Login expired");
-    location.href="/admin";
-    return;
-  }
-  window.location.href = "/voter?token=" + token;
-}
-</script>
+          <h3 style="margin-top:30px;">All Elections</h3>
+          <div id="electionsList"></div>
+        </div>
 
-<table class="table" id="voterTable"></table>
-</div>
+        <!-- Candidates Tab -->
+        <div id="candidates-tab" class="tab-content">
+          <h3>Add Candidate</h3>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+            <select id="candElection" class="input" style="width:200px;"></select>
+            <input id="candName" class="input" placeholder="Candidate Name" style="width:200px;">
+            <button class="btn" onclick="addCandidate()">Add Candidate</button>
+          </div>
+          <p id="candMsg" class="small" style="margin-top:10px;"></p>
 
-</div>
-</div>
+          <h3 style="margin-top:30px;">Candidates by Election</h3>
+          <select id="viewCandElection" class="input" style="width:300px;" onchange="loadCandidatesForElection()">
+          </select>
+          <table class="table" id="candTable"></table>
+        </div>
 
-<script>
-// check token
-if(!localStorage.getItem("admin_token")){
- alert("Login Required!");
- location.href="/admin";
-}
+        <!-- Voters Tab -->
+        <div id="voters-tab" class="tab-content">
+          <h3>Registered Voters</h3>
+          <button class="btn secondary" onclick="openVoter()">+ Register New Voter</button>
+          <table class="table" id="voterTable" style="margin-top:15px;"></table>
+        </div>
+      </div>
 
-// Load candidates
-async function loadCandidates(){
- try{
-  let r=await fetch("/candidates");
-  if(!r.ok) {
-   console.error("Failed to fetch candidates:", r.status);
-   return;
-  }
-  let d=await r.json();
-  console.log("Candidates:", d);
-  let t=document.getElementById("candTable");
-  t.innerHTML="<tr><th>ID</th><th>Name</th><th>Votes</th></tr>";
-  if(!d || d.length===0) {
-   t.innerHTML+="<tr><td colspan='3' style='text-align:center;'>No candidates added yet</td></tr>";
-   return;
-  }
-  d.forEach(c=>{
-   t.innerHTML+=`<tr><td>${c.id}</td><td>${c.name}</td><td>${c.votes}</td></tr>`;
-  });
- }catch(e){
-  console.error("loadCandidates error:", e);
- }
-}
-loadCandidates();
-setInterval(loadCandidates, 2000);
+    </div>
+  </div>
 
-// Load voters
-async function loadVoters(){
- let r=await fetch("/admin/voters",{headers:{Authorization:"Bearer "+localStorage.getItem("admin_token")}});
- if(!r.ok) return;
- let d=await r.json();
- let t=document.getElementById("voterTable");
- t.innerHTML="<tr><th>ID</th><th>Enrollment</th><th>Name</th></tr>";
- if(d.length===0) t.innerHTML+="<tr><td colspan='3' style='text-align:center;'>No voters registered yet</td></tr>";
- d.forEach(v=>{
-  t.innerHTML+=`<tr><td>${v.id}</td><td>${v.enrollment}</td><td>${v.name}</td></tr>`;
- });
-}
-loadVoters();
-setInterval(loadVoters, 2000);
+  <script>
+    const token = localStorage.getItem("admin_token");
+    if (!token) {
+      alert("Login Required!");
+      location.href = "/admin";
+    }
 
-// add candidate
-async function addCandidate(){
- let name=cname.value.trim();
- if(!name) return msg1.innerText="Enter name";
- msg1.innerText="Processing...";
- let r=await fetch("/admin/add_candidate",{
-  method:"POST",
-  headers:{
-    "Content-Type":"application/json",
-    Authorization:"Bearer "+localStorage.getItem("admin_token")
-  },
-  body:JSON.stringify({name})
- });
- let d=await r.json();
- if(r.ok){
-   msg1.style.color="green"; msg1.innerText="Added ✔";
-   cname.value=""; loadCandidates();
- }else msg1.innerText=d.error;
-}
+    const headers = {
+      "Authorization": "Bearer " + token,
+      "Content-Type": "application/json"
+    };
 
-// logout
-function logout(){
- localStorage.removeItem("admin_token");
- location.href="/admin";
-}
-</script>
+    /* Tab Switching */
+    function showTab(tabName) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+
+      event.target.classList.add('active');
+      document.getElementById(tabName + '-tab').classList.add('active');
+    }
+
+    /* Load Stats */
+    async function loadStats() {
+      try {
+        const [electionsRes, votersRes] = await Promise.all([
+          fetch("/api/elections"),
+          fetch("/admin/voters", { headers })
+        ]);
+
+        const elections = await electionsRes.json();
+        const voters = await votersRes.json();
+
+        document.getElementById("totalElections").textContent = elections.length || 0;
+        document.getElementById("totalVoters").textContent = voters.length || 0;
+        document.getElementById("activeElections").textContent =
+          elections.filter(e => e.phase === "ACTIVE").length;
+
+      } catch (e) {
+        console.error("Failed to load stats:", e);
+      }
+    }
+
+    /* Load Elections */
+    async function loadElections() {
+      try {
+        const res = await fetch("/api/elections");
+        const elections = await res.json();
+
+        const container = document.getElementById("electionsList");
+        const candSelect = document.getElementById("candElection");
+        const viewSelect = document.getElementById("viewCandElection");
+
+        container.innerHTML = "";
+        candSelect.innerHTML = "";
+        viewSelect.innerHTML = "";
+
+        if (elections.length === 0) {
+          container.innerHTML = '<p style="color:#666;">No elections created yet</p>';
+          return;
+        }
+
+        elections.forEach(e => {
+          // Election card
+          container.innerHTML += `
+     <div class="election-card">
+       <h4>${e.name} <span class="phase phase-${e.phase}">${e.phase}</span></h4>
+       <p style="color:#666;font-size:14px;">${e.description || 'No description'}</p>
+       <p style="font-size:13px;margin-top:8px;">
+         <strong>Candidates:</strong> ${e.candidateCount} | 
+         <strong>Votes:</strong> ${e.totalVotes} | 
+         <strong>Results Status:</strong> ${e.is_live_results ? '<span style="color:#4caf50;">Live</span>' : '<span style="color:#ff9800;">Hidden</span>'}
+         ${e.expires_at ? `<br><strong>Expires:</strong> ${new Date(e.expires_at).toLocaleString()}` : ''}
+       </p>
+       <div class="election-actions">
+         ${getPhaseButtons(e)}
+       </div>
+     </div>`;
+
+          // Dropdown options
+          candSelect.innerHTML += `<option value="${e.id}">${e.name}</option>`;
+          viewSelect.innerHTML += `<option value="${e.id}">${e.name}</option>`;
+        });
+
+        // Load candidates for first election
+        if (elections.length > 0) {
+          loadCandidatesForElection();
+        }
+
+      } catch (e) {
+        console.error("Failed to load elections:", e);
+      }
+    }
+
+    function getPhaseButtons(election) {
+      const id = election.id;
+      switch (election.phase) {
+        case "CREATED":
+          return `
+       <button class="btn" onclick="startElection(${id})">Start Election</button>
+       <span style="color:#666;font-size:12px;">Add candidates before starting</span>`;
+        case "ACTIVE":
+          return `
+       <button class="btn secondary" onclick="endElection(${id})">End Election</button>
+       <span style="color:#4caf50;font-size:12px;">Voting is live!</span>`;
+        case "EXPIRED":
+          return `
+       <button class="btn secondary" onclick="endElection(${id})">End Election (Expired)</button>
+       <span style="color:#ff9800;font-size:12px;">Voting blocked due to time limit.</span>`;
+        case "ENDED":
+          return `
+       <button class="btn" onclick="declareResults(${id})">Publish Results</button>`;
+        case "RESULT_DECLARED":
+          return `<span style="color:#2196f3;font-size:12px;">Results declared</span>`;
+        default:
+          return "";
+      }
+    }
+
+    /* Create Election */
+    async function createElection() {
+      const name = document.getElementById("electionName").value.trim();
+      const desc = document.getElementById("electionDesc").value.trim();
+      const isLiveResults = document.getElementById("isLiveResults").checked;
+      const expiresAt = document.getElementById("electionExpiry").value; // Format: "YYYY-MM-DDTHH:MM"
+      const msg = document.getElementById("electionMsg");
+
+      if (!name) {
+        msg.style.color = "red";
+        msg.textContent = "Enter election name";
+        return;
+      }
+
+      msg.textContent = "Creating election...";
+
+      try {
+        const payload = {
+          name,
+          description: desc,
+          is_live_results: isLiveResults
+        };
+
+        if (expiresAt) {
+          payload.expires_at = expiresAt;
+        }
+
+        const res = await fetch("/api/elections", {
+          method: "POST",
+          headers,
+          body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+          msg.style.color = "green";
+          msg.textContent = `Election created! ID: ${data.election_id}`;
+          document.getElementById("electionName").value = "";
+          document.getElementById("electionDesc").value = "";
+          document.getElementById("electionExpiry").value = "";
+          loadElections();
+          loadStats();
+        } else {
+          msg.style.color = "red";
+          msg.textContent = data.error || "Failed";
+        }
+      } catch (e) {
+        msg.style.color = "red";
+        msg.textContent = "Network error";
+      }
+    }
+
+    /* Phase Control */
+    async function startElection(id) {
+      if (!confirm("Start this election? Voting will begin immediately.")) return;
+      await changePhase(id, "start");
+    }
+
+    async function endElection(id) {
+      if (!confirm("End this election? No more votes will be accepted.")) return;
+      await changePhase(id, "end");
+    }
+
+    async function declareResults(id) {
+      if (!confirm("Declare results? This action cannot be undone.")) return;
+      await changePhase(id, "declare");
+    }
+
+    async function changePhase(id, action) {
+      try {
+        const res = await fetch(`/api/elections/${id}/${action}`, {
+          method: "POST",
+          headers
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+          alert(`Success! New phase: ${data.phase}`);
+          loadElections();
+          loadStats();
+        } else {
+          alert("Error: " + (data.error || "Failed"));
+        }
+      } catch (e) {
+        alert("Network error");
+      }
+    }
+
+    /* Load Candidates */
+    async function loadCandidatesForElection() {
+      const select = document.getElementById("viewCandElection");
+      const electionId = select.value;
+
+      if (!electionId) return;
+
+      try {
+        const res = await fetch(`/api/elections/${electionId}/candidates`);
+        const candidates = await res.json();
+
+        const table = document.getElementById("candTable");
+        table.innerHTML = "<tr><th>ID</th><th>Name</th><th>Votes</th></tr>";
+
+        if (candidates.length === 0) {
+          table.innerHTML += "<tr><td colspan='3' style='text-align:center;'>No candidates</td></tr>";
+          return;
+        }
+
+        candidates.forEach(c => {
+          table.innerHTML += `<tr><td>${c.id}</td><td>${c.name}</td><td>${c.votes}</td></tr>`;
+        });
+
+      } catch (e) {
+        console.error("Failed to load candidates:", e);
+      }
+    }
+
+    /* Add Candidate */
+    async function addCandidate() {
+      const electionId = document.getElementById("candElection").value;
+      const name = document.getElementById("candName").value.trim();
+      const msg = document.getElementById("candMsg");
+
+      if (!name) {
+        msg.style.color = "red";
+        msg.textContent = "Enter candidate name";
+        return;
+      }
+
+      msg.textContent = "Adding...";
+
+      try {
+        const res = await fetch(`/api/elections/${electionId}/candidates`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ name })
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+          msg.style.color = "green";
+          msg.textContent = "Candidate added!";
+          document.getElementById("candName").value = "";
+          loadCandidatesForElection();
+          loadElections();
+        } else {
+          msg.style.color = "red";
+          msg.textContent = data.error || "Failed";
+        }
+      } catch (e) {
+        msg.style.color = "red";
+        msg.textContent = "Network error";
+      }
+    }
+
+    /* Load Voters */
+    async function loadVoters() {
+      try {
+        const res = await fetch("/admin/voters", { headers });
+        const voters = await res.json();
+
+        const table = document.getElementById("voterTable");
+        table.innerHTML = "<tr><th>ID</th><th>Enrollment</th><th>Name</th></tr>";
+
+        if (voters.length === 0) {
+          table.innerHTML += "<tr><td colspan='3' style='text-align:center;'>No voters registered</td></tr>";
+          return;
+        }
+
+        voters.forEach(v => {
+          table.innerHTML += `<tr><td>${v.id}</td><td>${v.enrollment}</td><td>${v.name}</td></tr>`;
+        });
+
+      } catch (e) {
+        console.error("Failed to load voters:", e);
+      }
+    }
+
+    function openVoter() {
+      window.location.href = "/voter?token=" + token;
+    }
+
+    function logout() {
+      localStorage.removeItem("admin_token");
+      location.href = "/admin";
+    }
+
+    /* Initialize */
+    loadStats();
+    loadElections();
+    loadVoters();
+
+    setInterval(loadStats, 5000);
+    setInterval(loadElections, 10000);
+    setInterval(loadVoters, 10000);
+  </script>
 </body>
+
 </html>

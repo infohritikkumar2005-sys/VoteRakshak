@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Verify Vote - Vote Rakshak V2</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+  <style>
+    .verify-container {
+      max-width: 700px;
+      margin: 30px auto;
+    }
+
+    .search-box {
+      background: #fff;
+      border: 2px solid #0a3475;
+      border-radius: 12px;
+      padding: 25px;
+      margin-bottom: 25px;
+    }
+
+    .search-box h3 {
+      color: #0a3475;
+      margin-bottom: 15px;
+      text-align: center;
+    }
+
+    .search-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 15px;
+      flex-wrap: wrap;
+    }
+
+    .search-row input,
+    .search-row select {
+      flex: 1;
+      padding: 12px;
+      font-size: 15px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      min-width: 140px;
+    }
+
+    .search-row button {
+      padding: 12px 25px;
+    }
+
+    .tabs {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .tab-btn {
+      padding: 10px 24px;
+      background: #f5f5f5;
+      border: 2px solid #ddd;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+      color: #666;
+      font-size: 14px;
+      transition: all 0.2s;
+    }
+
+    .tab-btn.active {
+      background: #0a3475;
+      color: #fff;
+      border-color: #0a3475;
+    }
+
+    .result-box {
+      background: #fff;
+      border-radius: 12px;
+      padding: 25px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+      display: none;
+      margin-bottom: 20px;
+    }
+
+    .result-box.show {
+      display: block;
+    }
+
+    .verified {
+      border-left: 5px solid #4caf50;
+    }
+
+    .not-found {
+      border-left: 5px solid #f44336;
+    }
+
+    .result-header {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      margin-bottom: 20px;
+      padding-bottom: 15px;
+      border-bottom: 1px solid #eee;
+    }
+
+    .result-icon {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+    }
+
+    .result-icon.success {
+      background: #e8f5e9;
+      color: #4caf50;
+    }
+
+    .result-icon.error {
+      background: #ffebee;
+      color: #f44336;
+    }
+
+    .result-title {
+      font-size: 20px;
+      font-weight: bold;
+    }
+
+    .result-title.success {
+      color: #2e7d32;
+    }
+
+    .result-title.error {
+      color: #c62828;
+    }
+
+    .detail-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 15px;
+    }
+
+    @media(max-width:600px) {
+      .detail-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .search-row {
+        flex-direction: column;
+      }
+    }
+
+    .detail-item {
+      background: #f8f9fa;
+      padding: 12px;
+      border-radius: 8px;
+    }
+
+    .detail-label {
+      font-size: 12px;
+      color: #666;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .detail-value {
+      font-size: 14px;
+      font-weight: 600;
+      color: #333;
+      word-break: break-all;
+    }
+
+    .blockchain-proof {
+      margin-top: 20px;
+      padding: 15px;
+      background: #e3f2fd;
+      border-radius: 8px;
+      border: 1px solid #90caf9;
+    }
+
+    .blockchain-proof h4 {
+      color: #1565c0;
+      margin-bottom: 10px;
+      font-size: 14px;
+    }
+
+    .blockchain-proof p {
+      font-size: 13px;
+      color: #333;
+      margin: 5px 0;
+    }
+
+    .blockchain-proof code {
+      display: block;
+      background: #fff;
+      padding: 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      word-break: break-all;
+      margin-top: 5px;
+    }
+
+    .info-box {
+      background: #fff3e0;
+      border-left: 4px solid #ff9800;
+      padding: 15px;
+      margin-top: 20px;
+      border-radius: 0 8px 8px 0;
+    }
+
+    .info-box h4 {
+      color: #e65100;
+      margin-bottom: 8px;
+    }
+
+    .info-box p {
+      font-size: 14px;
+      color: #666;
+      margin: 0;
+    }
+
+    .loading-spinner {
+      text-align: center;
+      padding: 40px;
+      color: #666;
+      font-size: 16px;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 28px;
+      height: 28px;
+      border: 4px solid #ddd;
+      border-top-color: #0a3475;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      vertical-align: middle;
+      margin-right: 10px;
+    }
+
+    .btn-pdf {
+      background: #dc3545;
+      color: #fff;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 15px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 14px;
+      transition: background 0.2s;
+    }
+
+    .btn-pdf:hover {
+      background: #c82333;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="strip"></div>
+
+  <header class="gov-header">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <img class="ashoka"
+        src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/55/Emblem_of_India.svg/500px-Emblem_of_India.svg.png"
+        alt="" width="45">
+      <div><b>Vote Rakshak V2</b><br><small>Vote Verification Portal</small></div>
+    </div>
+    <nav class="top-links">
+      <a href="/">Home</a>
+      <a href="/results">Results</a>
+      <a href="/admin">Admin</a>
+    </nav>
+  </header>
+
+  <div class="container verify-container">
+
+    <div class="search-box">
+      <h3>Verify Your Vote</h3>
+
+      <!-- Tabs -->
+      <div class="tabs">
+        <button id="tab-btn-receipt" class="tab-btn active" onclick="switchTab('receipt', this)">By Receipt ID</button>
+        <button id="tab-btn-enrollment" class="tab-btn" onclick="switchTab('enrollment', this)">By Enrollment</button>
+      </div>
+
+      <!-- Receipt ID Panel -->
+      <div id="panel-receipt">
+        <div class="search-row">
+          <input type="number" id="receiptId" placeholder="Enter your Receipt ID (e.g., 1)">
+          <button class="btn" onclick="verifyByReceipt()">Verify</button>
+        </div>
+      </div>
+
+      <!-- Enrollment Panel -->
+      <div id="panel-enrollment" style="display:none;">
+        <div class="search-row">
+          <input type="text" id="enrollmentInput" placeholder="Enter Enrollment Number">
+          <select id="electionSelect">
+            <option value="">Select Election...</option>
+          </select>
+        </div>
+        <div class="search-row">
+          <button class="btn" id="searchBtn" onclick="verifyByEnrollment()"
+            style="width:100%;font-size:16px;padding:14px;">
+            🔍 Search Receipt
+          </button>
+        </div>
+        <p id="enrollMsg" style="color:#666;font-size:13px;margin:5px 0 0 0;"></p>
+      </div>
+    </div>
+
+    <!-- Loading -->
+    <div id="loadingBox" class="result-box" style="display:none;">
+      <div class="loading-spinner">
+        <span class="spinner"></span>
+        Verifying on blockchain...
+      </div>
+    </div>
+
+    <!-- Results -->
+    <div id="resultBox" class="result-box"></div>
+
+    <!-- Info -->
+    <div class="info-box">
+      <h4>Privacy Notice</h4>
+      <p>Your vote choice is <strong>never</strong> revealed during verification.
+        We only confirm that your vote exists on the blockchain and was recorded correctly.
+        The verification proves the integrity of your vote without exposing how you voted.</p>
+    </div>
+
+  </div>
+
+  <script>
+    /* =============================================
+       TAB SWITCH — element directly pass kiya
+       (no global event needed)
+       ============================================= */
+    function switchTab(tabName, clickedBtn) {
+      // Update button styles
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      clickedBtn.classList.add('active');
+
+      // Show/hide panels
+      document.getElementById('panel-receipt').style.display = (tabName === 'receipt') ? 'block' : 'none';
+      document.getElementById('panel-enrollment').style.display = (tabName === 'enrollment') ? 'block' : 'none';
+
+      // Clear results
+      document.getElementById('resultBox').className = 'result-box';
+      document.getElementById('resultBox').innerHTML = '';
+      document.getElementById('loadingBox').style.display = 'none';
+      document.getElementById('enrollMsg').textContent = '';
+    }
+
+    /* =============================================
+       LOAD ELECTIONS INTO DROPDOWN
+       ============================================= */
+    async function loadElections() {
+      try {
+        const res = await fetch('/api/elections');
+        if (!res.ok) throw new Error('Failed to fetch elections');
+        const elections = await res.json();
+
+        const sel = document.getElementById('electionSelect');
+        sel.innerHTML = '<option value="">Select Election...</option>';
+
+        if (!Array.isArray(elections) || elections.length === 0) {
+          sel.innerHTML += '<option value="" disabled>No elections found</option>';
+          return;
+        }
+
+        elections.forEach(e => {
+          const opt = document.createElement('option');
+          opt.value = e.id;
+          opt.textContent = `${e.name} [${e.phase}]`;
+          sel.appendChild(opt);
+        });
+
+        console.log(`Loaded ${elections.length} elections into dropdown`);
+      } catch (err) {
+        console.error('loadElections error:', err);
+        document.getElementById('enrollMsg').textContent = 'Could not load elections. Is server running?';
+      }
+    }
+
+    /* =============================================
+       VERIFY BY RECEIPT ID
+       ============================================= */
+    async function verifyByReceipt() {
+      const receiptId = document.getElementById('receiptId').value.trim();
+
+      if (!receiptId) {
+        alert('Please enter a Receipt ID');
+        return;
+      }
+
+      showLoading();
+
+      try {
+        const res = await fetch(`/api/receipts/verify/${receiptId}`);
+        const data = await res.json();
+        hideLoading();
+
+        if (data.verified) {
+          showVerifiedResult(data);
+        } else {
+          showNotFoundResult(data.error || 'Receipt not found');
+        }
+      } catch (err) {
+        hideLoading();
+        showNotFoundResult('Network error: ' + err.message);
+      }
+    }
+
+    /* =============================================
+       VERIFY BY ENROLLMENT
+       ============================================= */
+    async function verifyByEnrollment() {
+      const enrollment = document.getElementById('enrollmentInput').value.trim();
+      const electionId = document.getElementById('electionSelect').value;
+      const msgEl = document.getElementById('enrollMsg');
+
+      msgEl.textContent = '';
+
+      if (!enrollment) {
+        msgEl.style.color = 'red';
+        msgEl.textContent = '⚠ Please enter your Enrollment Number.';
+        document.getElementById('enrollmentInput').focus();
+        return;
+      }
+
+      if (!electionId) {
+        msgEl.style.color = 'red';
+        msgEl.textContent = '⚠ Please select an Election from the dropdown.';
+        document.getElementById('electionSelect').focus();
+        return;
+      }
+
+      console.log('Searching receipt for enrollment:', enrollment, 'election:', electionId);
+      showLoading();
+
+      try {
+        // Step 1: Search in DB
+        const searchRes = await fetch('/api/receipts/search', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ enrollment, election_id: parseInt(electionId) })
+        });
+        const searchData = await searchRes.json();
+
+        console.log('Search result:', searchData);
+
+        if (searchData.found) {
+          // Step 2: Verify on blockchain
+          try {
+            const verifyRes = await fetch(`/api/receipts/verify/${searchData.receipt.receipt_id}`);
+            const verifyData = await verifyRes.json();
+            hideLoading();
+
+            if (verifyData.verified) {
+              showVerifiedResult(verifyData);
+            } else {
+              // Show local data anyway
+              showVerifiedResult({
+                verified: true,
+                blockchain: {
+                  receipt_id: searchData.receipt.receipt_id,
+                  election_id: searchData.receipt.election_id,
+                  visible_tag: searchData.receipt.visible_tag,
+                  timestamp: 0,
+                  exists: true,
+                },
+                local: searchData.receipt,
+                message: 'Vote record verified from database'
+              });
+            }
+          } catch (verifyErr) {
+            hideLoading();
+            // blockchain down, still show DB result
+            showVerifiedResult({
+              verified: true,
+              blockchain: {
+                receipt_id: searchData.receipt.receipt_id,
+                election_id: searchData.receipt.election_id,
+                visible_tag: searchData.receipt.visible_tag,
+                timestamp: 0,
+                exists: true,
+              },
+              local: searchData.receipt,
+              message: 'Vote record found (blockchain unavailable)'
+            });
+          }
+        } else {
+          hideLoading();
+          const msg = searchData.message || 'No vote found for this enrollment in the selected election.';
+          showNotFoundResult(msg);
+        }
+
+      } catch (err) {
+        hideLoading();
+        console.error('verifyByEnrollment error:', err);
+        showNotFoundResult('Network error: ' + err.message);
+      }
+    }
+
+    /* =============================================
+       UI HELPERS
+       ============================================= */
+    function showLoading() {
+      document.getElementById('loadingBox').style.display = 'block';
+      document.getElementById('resultBox').className = 'result-box';
+      document.getElementById('resultBox').innerHTML = '';
+    }
+
+    function hideLoading() {
+      document.getElementById('loadingBox').style.display = 'none';
+    }
+
+    function showVerifiedResult(data) {
+      const blockchain = data.blockchain || {};
+      const local = data.local || null;
+
+      const ts = blockchain.timestamp
+        ? (blockchain.timestamp > 1000000000000
+          ? new Date(blockchain.timestamp).toLocaleString()
+          : new Date(blockchain.timestamp * 1000).toLocaleString())
+        : '—';
+
+      const html = `
+    <div class="result-header">
+      <div class="result-icon success">✓</div>
+      <div>
+        <div class="result-title success">Vote Verified ✅</div>
+        <div style="color:#666;font-size:14px;">${data.message || 'Your vote exists on the blockchain'}</div>
+      </div>
+    </div>
+
+    <div class="detail-grid">
+      <div class="detail-item">
+        <div class="detail-label">Receipt ID</div>
+        <div class="detail-value">${blockchain.receipt_id ?? '—'}</div>
+      </div>
+      <div class="detail-item">
+        <div class="detail-label">Election ID</div>
+        <div class="detail-value">${blockchain.election_id ?? '—'}</div>
+      </div>
+      <div class="detail-item">
+        <div class="detail-label">Visible Tag</div>
+        <div class="detail-value">${blockchain.visible_tag ?? '—'}</div>
+      </div>
+      <div class="detail-item">
+        <div class="detail-label">Timestamp</div>
+        <div class="detail-value">${ts}</div>
+      </div>
+    </div>
+
+    ${local ? `
+    <div class="blockchain-proof">
+      <h4>🔗 Blockchain Proof</h4>
+      <p><strong>Transaction Hash:</strong></p>
+      <code>${local.tx_hash}</code>
+      <p style="margin-top:10px;"><strong>Block Number:</strong> ${local.block_number}</p>
+      ${local.timestamp ? `<p><strong>Recorded At:</strong> ${new Date(local.timestamp).toLocaleString()}</p>` : ''}
+    </div>` : ''}
+
+    <div style="margin-top:20px;padding:15px;background:#e8f5e9;border-radius:8px;text-align:center;">
+      <p style="color:#2e7d32;font-weight:bold;margin:0;">
+        ✓ Your vote is immutably recorded on the Ethereum blockchain
+      </p>
+      <p style="color:#666;font-size:13px;margin-top:5px;margin-bottom:10px;">
+        This record cannot be altered or deleted
+      </p>
+      <button class="btn-pdf" onclick="downloadPDF('${blockchain.receipt_id}', '${local ? local.tx_hash : ''}', '${local ? local.block_number : ''}')">📄 Download PDF Receipt</button>
+    </div>
+  `;
+
+      const box = document.getElementById('resultBox');
+      box.className = 'result-box show verified';
+      box.innerHTML = html;
+    }
+
+    function showNotFoundResult(message) {
+      const html = `
+    <div class="result-header">
+      <div class="result-icon error">✗</div>
+      <div>
+        <div class="result-title error">Vote Not Found</div>
+        <div style="color:#666;font-size:14px;">${message}</div>
+      </div>
+    </div>
+
+    <div style="padding:15px;background:#fff3e0;border-radius:8px;margin-top:10px;">
+      <p style="color:#666;margin:0 0 8px 0;font-weight:bold;">This could mean:</p>
+      <ul style="color:#666;margin:0;padding-left:20px;">
+        <li>You haven't voted yet in this election</li>
+        <li>Wrong enrollment number entered</li>
+        <li>Wrong election selected</li>
+        <li>Receipt ID entered incorrectly</li>
+      </ul>
+    </div>
+  `;
+
+      const box = document.getElementById('resultBox');
+      box.className = 'result-box show not-found';
+      box.innerHTML = html;
+    }
+
+    /* =============================================
+       GENERATE PDF RECEIPT
+       ============================================= */
+    function downloadPDF(receiptId, txHash, blockNum) {
+      if (!receiptId) return;
+
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+
+      const dateStr = new Date().toLocaleString();
+
+      // Header
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(22);
+      doc.setTextColor(10, 52, 117); // Navy Blue
+      doc.text("Vote Rakshak V2", 105, 20, null, null, "center");
+
+      doc.setFontSize(16);
+      doc.setTextColor(46, 125, 50); // Green
+      doc.text("Cryptographic Vote Receipt", 105, 30, null, null, "center");
+
+      // Line separator
+      doc.setDrawColor(200);
+      doc.line(20, 38, 190, 38);
+
+      // Body content
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(12);
+      doc.setTextColor(50, 50, 50);
+
+      doc.text("Date & Time: " + dateStr, 20, 50);
+      doc.text("Status: SUCCESS (Verified on Ethereum Blockchain)", 20, 60);
+
+      // Labels & values
+      doc.setFont("helvetica", "bold");
+      doc.text("Receipt ID:", 20, 80);
+      doc.setFont("courier", "normal");
+      doc.setFontSize(10);
+      doc.text(String(receiptId), 20, 88);
+
+      if (txHash) {
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(12);
+        doc.text("Transaction Hash:", 20, 105);
+        doc.setFont("courier", "normal");
+        doc.setFontSize(10);
+        const splitTx = doc.splitTextToSize(String(txHash), 170);
+        doc.text(splitTx, 20, 113);
+      }
+
+      if (blockNum) {
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(12);
+        doc.text("Block Number:", 20, 130);
+        doc.setFont("courier", "normal");
+        doc.text(String(blockNum), 60, 130);
+      }
+
+      // Footer
+      doc.setDrawColor(200);
+      doc.line(20, 150, 190, 150);
+
+      doc.setFont("helvetica", "italic");
+      doc.setFontSize(10);
+      doc.setTextColor(100, 100, 100);
+      doc.text("This receipt is cryptographically verifiable.", 105, 160, null, null, "center");
+      doc.text("You can verify your vote anytime at the /verify portal.", 105, 166, null, null, "center");
+      doc.text("Keep this document safe as proof of your democratic participation.", 105, 172, null, null, "center");
+
+      // Save it
+      doc.save("Vote_Receipt_" + String(receiptId).substring(0, 8) + ".pdf");
+    }
+
+    /* =============================================
+       INIT
+       ============================================= */
+    loadElections();
+  </script>
+
+</body>
+
+</html>

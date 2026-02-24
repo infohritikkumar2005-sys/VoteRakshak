@@ -1,163 +1,468 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Election Results - Vote Rakshak</title>
-<link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Election Results - Vote Rakshak V2</title>
+  <link rel="stylesheet" href="style.css">
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 
-<style>
-.results-container{
- display:flex;flex-wrap:wrap;
- justify-content:center;gap:20px;margin-top:20px;
-}
+  <style>
+    .election-selector {
+      background: #fff;
+      border: 2px solid #0a3475;
+      border-radius: 10px;
+      padding: 15px;
+      margin-bottom: 20px;
+      text-align: center;
+    }
 
-/* Chart Cards */
-.chart-card{
- background:white;padding:20px;border-radius:10px;
- box-shadow:0 0 10px rgba(0,0,0,.1);
- width:420px;max-width:90%;
-}
-.chart-title{text-align:center;font-weight:bold;margin-bottom:8px;font-size:18px;color:#0a3475}
+    .election-selector select {
+      padding: 10px 20px;
+      font-size: 16px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      min-width: 300px;
+    }
 
-/* Winner Banner */
-#winnerBox{
- text-align:center;background:#e8f7ff;
- padding:12px;border-radius:8px;
- font-size:22px;font-weight:bold;
- margin:20px auto;color:#0057b3;width:70%;
- box-shadow:0 0 10px rgba(0,0,0,.08);
-}
+    .phase-badge {
+      display: inline-block;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-weight: bold;
+      font-size: 14px;
+      margin-left: 10px;
+    }
 
-/* Candidate Vote Table (Updated for Full Width) */
-.candidateBox{
- max-width:900px;          /* Wider than before */
- width:90%;                /* Fits under both charts */
- margin:30px auto;
- background:white;
- padding:22px 28px;
- border-radius:10px;
- box-shadow:0 0 15px rgba(0,0,0,.08);
-}
+    .phase-CREATED {
+      background: #9e9e9e;
+      color: #fff;
+    }
 
+    .phase-ACTIVE {
+      background: #4caf50;
+      color: #fff;
+    }
 
-.candidateRow{
- display:flex;justify-content:space-between;
- align-items:center;padding:10px 5px;
- border-bottom:1px solid #eee;font-size:17px;
-}
-.candidateRow:last-child{border-bottom:none;}
+    .phase-ENDED {
+      background: #f44336;
+      color: #fff;
+    }
 
-.candidateRow b{
- color:#05306d;text-transform:capitalize;
-}
+    .phase-RESULT_DECLARED {
+      background: #2196f3;
+      color: #fff;
+    }
 
-.voteBadge{
- background:#0057b3;color:white;
- padding:4px 12px;border-radius:6px;
- font-weight:bold;font-size:16px;
-}
+    .results-container {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 20px;
+      margin-top: 20px;
+    }
 
-/* Smooth visuals */
-body{
- background:linear-gradient(to bottom,#eaf6ff,#eaffe8);
-}
-</style>
+    .chart-card {
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, .1);
+      width: 420px;
+      max-width: 90%;
+    }
+
+    .chart-title {
+      text-align: center;
+      font-weight: bold;
+      margin-bottom: 8px;
+      font-size: 18px;
+      color: #0a3475
+    }
+
+    #winnerBox {
+      text-align: center;
+      background: #e8f7ff;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 22px;
+      font-weight: bold;
+      margin: 20px auto;
+      color: #0057b3;
+      width: 70%;
+      box-shadow: 0 0 10px rgba(0, 0, 0, .08);
+      transition: all 0.3s ease;
+    }
+
+    .candidateBox {
+      max-width: 900px;
+      width: 90%;
+      margin: 30px auto;
+      background: white;
+      padding: 22px 28px;
+      border-radius: 10px;
+      box-shadow: 0 0 15px rgba(0, 0, 0, .08);
+    }
+
+    .candidateRow {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 5px;
+      border-bottom: 1px solid #eee;
+      font-size: 17px;
+    }
+
+    .candidateRow:last-child {
+      border-bottom: none;
+    }
+
+    .candidateRow b {
+      color: #05306d;
+      text-transform: capitalize;
+    }
+
+    .voteBadge {
+      background: #0057b3;
+      color: white;
+      padding: 4px 12px;
+      border-radius: 6px;
+      font-weight: bold;
+      font-size: 16px;
+    }
+
+    .phase-notice {
+      text-align: center;
+      padding: 20px;
+      background: #fff3cd;
+      border-radius: 10px;
+      margin: 20px auto;
+      max-width: 600px;
+      color: #856404;
+    }
+
+    body {
+      background: linear-gradient(to bottom, #eaf6ff, #eaffe8);
+      font-family: sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+
+    /* Base styles for header from style.css equivalent */
+    .gov-header {
+      background: #0a3475;
+      color: white;
+      padding: 15px 30px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .top-links a {
+      color: white;
+      text-decoration: none;
+      margin-left: 20px;
+      font-weight: bold;
+    }
+  </style>
 </head>
 
 <body>
 
-<div class="strip"></div>
+  <div class="strip"></div>
 
-<header class="gov-header">
- <div style="display:flex;align-items:center;gap:10px;">
-    <img class="ashoka" src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/55/Emblem_of_India.svg/500px-Emblem_of_India.svg.png" alt="" width="45">
-    <div><b>Vote Rakshak</b><br><small>Live Election Results</small></div>
- </div>
+  <header class="gov-header">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <img class="ashoka"
+        src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/55/Emblem_of_India.svg/500px-Emblem_of_India.svg.png"
+        alt="" width="45">
+      <div><b>Vote Rakshak V2</b><br><small>Live Election Results</small></div>
+    </div>
 
- <nav class="top-links">
-    <a href="/">Home</a>
-    <a href="/voter">Vote</a>
-    <a href="/candidate">Candidates</a>
- </nav>
-</header>
+    <nav class="top-links">
+      <a href="/">Home</a>
+      <a href="/cast-vote">Vote</a>
+      <a href="/verify">Verify</a>
+      <a href="/admin">Admin</a>
+    </nav>
+  </header>
 
-<div class="container">
+  <div class="container" style="max-width: 1200px; margin: 0 auto; padding: 20px;">
 
-<div id="winnerBox">Loading results...</div>
+    <!-- Election Selector -->
+    <div class="election-selector">
+      <label style="font-weight:bold;color:#0a3475;font-size:18px;">
+        Select Election
+        <span id="phaseIndicator" class="phase-badge phase-CREATED">LOADING...</span>
+      </label>
+      <br><br>
+      <select id="electionSelect" onchange="triggerLoadResults()">
+        <option value="">-- Loading Elections --</option>
+      </select>
+    </div>
 
-<div class="results-container">
+    <div id="phaseNotice" class="phase-notice" style="display:none;">
+      <h3>Results Not Available</h3>
+      <p id="phaseNoticeText">Results will be displayed once the election ends.</p>
+    </div>
 
- <div class="chart-card">
-    <p class="chart-title">Vote Share - Pie Chart</p>
-    <canvas id="pieChart" width="380" height="380"></canvas>
- </div>
+    <div id="resultsContent">
+      <div id="winnerBox">Loading results...</div>
 
- <div class="chart-card">
-    <p class="chart-title">Votes Comparison - Bar Graph</p>
-    <canvas id="barChart" width="380" height="380"></canvas>
- </div>
+      <div class="results-container">
+        <div class="chart-card">
+          <p class="chart-title">Vote Share - Pie Chart</p>
+          <canvas id="pieChart" width="380" height="380"></canvas>
+        </div>
 
-</div>
+        <div class="chart-card">
+          <p class="chart-title">Votes Comparison - Bar Graph</p>
+          <canvas id="barChart" width="380" height="380"></canvas>
+        </div>
+      </div>
 
-<!-- Candidate Vote Table -->
-<div class="candidateBox">
- <h3>📋 Candidate Vote Count</h3>
- <div id="voteList"></div>
-</div>
+      <div class="candidateBox">
+        <h3 style="color:#0a3475; margin-bottom:15px; border-bottom:2px solid #eee; padding-bottom:10px;">Candidate Vote
+          Count</h3>
+        <div id="voteList"></div>
+      </div>
+    </div>
 
-</div>
+  </div>
 
-<script>
-let pieChart, barChart;
+  <script>
+    let pieChart, barChart;
+    let selectedElectionId = null;
+    let currentPhase = "CREATED";
+    let lastWinnerState = null;
 
-async function loadResults(){
- const res = await fetch("/candidates");
- const data = await res.json();
+    function fireConfetti() {
+      var duration = 4.5 * 1000;
+      var animationEnd = Date.now() + duration;
+      var defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 9999 };
 
- const names = data.map(c=>c.name);
- const votes = data.map(c=>c.votes);
+      function randomInRange(min, max) { return Math.random() * (max - min) + min; }
 
- // Winner
- let winner = data.reduce((a,b)=> a.votes>b.votes?a:b );
- document.getElementById("winnerBox").innerHTML =
- `🏆 Winner: <b>${winner.name}</b> (${winner.votes} votes)`;
+      var interval = setInterval(function () {
+        var timeLeft = animationEnd - Date.now();
+        if (timeLeft <= 0) return clearInterval(interval);
+        var particleCount = 50 * (timeLeft / duration);
+        confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } }));
+        confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } }));
+      }, 250);
+    }
 
- // Update Vote List Table
- const box=document.getElementById("voteList");
- box.innerHTML="";
- data.forEach(c=>{
-   box.innerHTML+=`
-   <div class="candidateRow">
-      <b>${c.name}</b>
-      <span class="voteBadge">${c.votes}</span>
-   </div>`;
- });
+    function triggerLoadResults() {
+      lastWinnerState = null; // reset confetti
+      loadResults();
+    }
 
- /* Pie Chart */
- if(pieChart) pieChart.destroy();
- pieChart = new Chart(document.getElementById("pieChart"),{
-  type:"pie",
-  data:{labels:names,datasets:[{data:votes,
-     backgroundColor:["#ff6384","#36a2eb","#ffce56",
-                      "#4bc0c0","#9966ff","#ff9f40"]}]}
- });
+    /* Load Elections */
+    async function loadElections() {
+      try {
+        const res = await fetch("/api/elections");
+        const elections = await res.json();
 
- /* Bar Chart */
- if(barChart) barChart.destroy();
- barChart = new Chart(document.getElementById("barChart"),{
-  type:"bar",
-  data:{labels:names,datasets:[{label:"Votes",
-      data:votes,backgroundColor:"#36a2eb"}]},
-  options:{responsive:true,scales:{y:{beginAtZero:true}}}
- });
-}
+        const select = document.getElementById("electionSelect");
+        select.innerHTML = "";
 
-loadResults();
-setInterval(loadResults,4000);
-</script>
+        if (elections.length === 0) {
+          select.innerHTML = '<option value="">No elections available</option>';
+          return;
+        }
+
+        elections.forEach(e => {
+          const opt = document.createElement("option");
+          opt.value = e.id;
+          opt.textContent = `${e.name} (${e.phase})`;
+          select.appendChild(opt);
+        });
+
+        // Select first by default
+        select.value = elections[0].id;
+        selectedElectionId = elections[0].id;
+        loadResults();
+
+      } catch (e) {
+        console.error("Failed to load elections:", e);
+      }
+    }
+
+    /* Load Results */
+    async function loadResults() {
+      const select = document.getElementById("electionSelect");
+      selectedElectionId = parseInt(select.value);
+
+      if (!selectedElectionId) return;
+
+      try {
+        // Get election details
+        const electionRes = await fetch(`/api/elections/${selectedElectionId}`);
+        const election = await electionRes.json();
+        currentPhase = election.phase;
+
+        // Update phase indicator
+        const indicator = document.getElementById("phaseIndicator");
+        indicator.textContent = currentPhase;
+        indicator.className = `phase-badge phase-${currentPhase}`;
+
+        // Show/hide results based on phase
+        const notice = document.getElementById("phaseNotice");
+        const content = document.getElementById("resultsContent");
+        const noticeText = document.getElementById("phaseNoticeText");
+
+        if (currentPhase === "CREATED") {
+          notice.style.display = "block";
+          content.style.display = "none";
+          noticeText.textContent = "This election has not started yet. Results will be available after voting ends.";
+          return;
+        }
+
+        if (!election.is_live_results && currentPhase !== "RESULT_DECLARED") {
+          notice.style.display = "block";
+          content.style.display = "none";
+          noticeText.textContent = "Results for this election are hidden and will be published once the election concludes.";
+          return;
+        }
+
+        notice.style.display = "none";
+        content.style.display = "block";
+
+        // Get candidates
+        const candRes = await fetch(`/api/elections/${selectedElectionId}/candidates`);
+        const data = await candRes.json();
+
+        if (data.length === 0) {
+          document.getElementById("winnerBox").innerHTML = "No candidates in this election";
+          return;
+        }
+
+        const names = data.map(c => c.name);
+        const votes = data.map(c => c.votes);
+
+        /* --- NEW TIE LOGIC AND WINNER CALCULATION --- */
+        const totalVotes = votes.reduce((a, b) => a + b, 0);
+
+        if (totalVotes === 0) {
+          document.getElementById("winnerBox").innerHTML =
+            currentPhase === "ACTIVE"
+              ? "Voting in progress... No votes cast yet"
+              : "No votes were cast in this election";
+          document.getElementById("winnerBox").style.background = "#e8f7ff";
+          document.getElementById("winnerBox").style.color = "#0057b3";
+        } else {
+          const maxVotes = Math.max(...votes);
+          const leaders = data.filter(c => c.votes === maxVotes);
+          const winPercentage = ((maxVotes / totalVotes) * 100).toFixed(1);
+
+          if (leaders.length === 1) {
+            const winner = leaders[0];
+            document.getElementById("winnerBox").innerHTML =
+              currentPhase === "ACTIVE"
+                ? `Leading: <b>${winner.name}</b> (${maxVotes} votes - ${winPercentage}%)`
+                : `Winner: <b>${winner.name}</b> 🎉 (${maxVotes} votes - ${winPercentage}%)`;
+
+            document.getElementById("winnerBox").style.background = currentPhase === "ACTIVE" ? "#e8f7ff" : "#d4edda";
+            document.getElementById("winnerBox").style.color = currentPhase === "ACTIVE" ? "#0057b3" : "#155724";
+
+            if (currentPhase === "ENDED" || currentPhase === "RESULT_DECLARED") {
+              if (lastWinnerState !== winner.name) {
+                lastWinnerState = winner.name;
+                fireConfetti();
+              }
+            }
+          } else {
+            // It's a tie
+            const tieNames = leaders.map(l => l.name).join(" & ");
+            document.getElementById("winnerBox").innerHTML =
+              currentPhase === "ACTIVE"
+                ? `Tie for Lead: <b>${tieNames}</b> (${maxVotes} votes each)`
+                : `Election Tied between: <b>${tieNames}</b> 🤝 (${maxVotes} votes each)`;
+
+            document.getElementById("winnerBox").style.background = "#fff3cd";
+            document.getElementById("winnerBox").style.color = "#856404";
+            lastWinnerState = "TIE";
+          }
+        }
+
+        // Update Vote List
+        const box = document.getElementById("voteList");
+        box.innerHTML = "";
+        // Sort data by votes for list
+        const sortedData = [...data].sort((a, b) => b.votes - a.votes);
+        sortedData.forEach(c => {
+          const percentage = totalVotes > 0 ? ((c.votes / totalVotes) * 100).toFixed(1) : 0;
+          box.innerHTML += `
+     <div class="candidateRow">
+       <b>${c.name}</b>
+       <div>
+         <span class="voteBadge">${c.votes}</span>
+         <span style="margin-left:10px;color:#666;width:60px;display:inline-block;text-align:right;">(${percentage}%)</span>
+       </div>
+     </div>`;
+        });
+
+        // Update Pie Chart seamlessly
+        if (pieChart) {
+          pieChart.data.labels = names;
+          pieChart.data.datasets[0].data = votes;
+          pieChart.update();
+        } else {
+          pieChart = new Chart(document.getElementById("pieChart"), {
+            type: "pie",
+            data: {
+              labels: names,
+              datasets: [{
+                data: votes,
+                backgroundColor: [
+                  "#ff6384", "#36a2eb", "#ffce56",
+                  "#4bc0c0", "#9966ff", "#ff9f40",
+                  "#c9cbcf", "#7cb342", "#d81b60"
+                ]
+              }]
+            },
+            options: {
+              responsive: true,
+              plugins: { legend: { position: 'bottom' } }
+            }
+          });
+        }
+
+        // Update Bar Chart seamlessly
+        if (barChart) {
+          barChart.data.labels = names;
+          barChart.data.datasets[0].data = votes;
+          barChart.update();
+        } else {
+          barChart = new Chart(document.getElementById("barChart"), {
+            type: "bar",
+            data: {
+              labels: names,
+              datasets: [{
+                label: "Votes",
+                data: votes,
+                backgroundColor: "#36a2eb"
+              }]
+            },
+            options: {
+              responsive: true,
+              scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+            }
+          });
+        }
+
+      } catch (e) {
+        console.error("Failed to load results:", e);
+      }
+    }
+
+    /* Initialize */
+    loadElections();
+    setInterval(loadResults, 3000);
+  </script>
 
 </body>
+
 </html>

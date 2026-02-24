@@ -3,10 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Register Voter - Election Portal</title>
+<title>Register Voter - Vote Rakshak V2</title>
 <link rel="stylesheet" href="style.css">
 
-<!-- MediaPipe -->
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
@@ -25,6 +24,22 @@
 }
 @media(max-width:768px){.video-wrap{max-width:300px}}
 .face-guide,.face-box{display:none!important;}
+
+.election-info{
+ background:#e3f2fd;
+ border:1px solid #90caf9;
+ border-radius:8px;
+ padding:12px;
+ margin-bottom:15px;
+}
+.election-info select{
+ width:100%;
+ padding:10px;
+ font-size:14px;
+ border-radius:6px;
+ border:1px solid #90caf9;
+ margin-top:8px;
+}
 </style>
 </head>
 
@@ -34,7 +49,7 @@
 <header class="gov-header">
  <div style="display:flex;align-items:center;gap:10px;">
    <img class="ashoka" src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/55/Emblem_of_India.svg/500px-Emblem_of_India.svg.png">
-   <div><b>Vote Rakshak</b><br><small>Voter Enrollment</small></div>
+   <div><b>Vote Rakshak V2</b><br><small>Voter Enrollment</small></div>
  </div>
  <nav class="top-links"><a href="/admin-dashboard">Back to Admin</a></nav>
 </header>
@@ -44,6 +59,15 @@
 
 <h3 style="color:#0a2a63;margin-bottom:10px;">Register New Voter</h3>
 
+<!-- Election Selection -->
+<div class="election-info">
+ <label style="font-weight:bold;color:#1565c0;">Register for Election:</label>
+ <select id="electionSelect">
+   <option value="">-- Loading Elections --</option>
+ </select>
+ <p id="electionPhase" style="font-size:12px;color:#666;margin-top:5px;"></p>
+</div>
+
 <label class="label">Enrollment Number</label>
 <input id="enroll" class="input" placeholder="Enter enrollment">
 
@@ -51,7 +75,7 @@
 <input id="nameInput" class="input" placeholder="Enter name">
 
 <p id="startMsg" style="color:#d14;font-weight:bold;margin-bottom:10px;">
-📌 Enter Enrollment & Name to enable face capture
+Enter Enrollment & Name to enable face capture
 </p>
 
 <div class="video-wrap idle" id="camBox">
@@ -74,6 +98,7 @@
 
 <script>
 let captured=null,stable=0,autoEnabled=false,photoTaken=false;
+let selectedElectionId = 1;
 
 const enroll=document.getElementById("enroll");
 const nameInput=document.getElementById("nameInput");
@@ -81,14 +106,83 @@ const video=document.getElementById("vid");
 const camBox=document.getElementById("camBox");
 const preview=document.getElementById("previewImg");
 
+const token = localStorage.getItem("admin_token") || new URLSearchParams(window.location.search).get("token");
+
+if(!token){
+ alert("Admin login required");
+ location.href = "/admin";
+}
+
+/* Load Elections */
+async function loadElections(){
+ try {
+   const res = await fetch("/api/elections");
+   const elections = await res.json();
+   
+   const select = document.getElementById("electionSelect");
+   select.innerHTML = "";
+   
+   // Filter to CREATED or ACTIVE elections (can register)
+   const registrable = elections.filter(e => 
+     e.phase === "CREATED" || e.phase === "ACTIVE"
+   );
+   
+   if(registrable.length === 0){
+     select.innerHTML = '<option value="">No elections accepting registration</option>';
+     return;
+   }
+   
+   registrable.forEach(e => {
+     const opt = document.createElement("option");
+     opt.value = e.id;
+     opt.textContent = `${e.name} (${e.phase})`;
+     select.appendChild(opt);
+   });
+   
+   selectedElectionId = registrable[0].id;
+   updateElectionPhase();
+   
+ } catch(e) {
+   console.error("Failed to load elections:", e);
+ }
+}
+
+document.getElementById("electionSelect").onchange = function(){
+ selectedElectionId = parseInt(this.value);
+ updateElectionPhase();
+};
+
+async function updateElectionPhase(){
+ try {
+   const res = await fetch(`/api/elections/${selectedElectionId}`);
+   const election = await res.json();
+   
+   const phaseText = document.getElementById("electionPhase");
+   if(election.phase === "CREATED"){
+     phaseText.textContent = "Election not started yet - voters can be registered";
+     phaseText.style.color = "#666";
+   } else if(election.phase === "ACTIVE"){
+     phaseText.textContent = "Voting is active - registration still open";
+     phaseText.style.color = "#4caf50";
+   } else {
+     phaseText.textContent = "Registration closed for this election";
+     phaseText.style.color = "#f44336";
+   }
+ } catch(e) {
+   console.error(e);
+ }
+}
+
 /* Enable auto capture only when details filled */
 function enableDetection(){
  if(enroll.value.trim()!=="" && nameInput.value.trim()!==""){
    autoEnabled=true;
-   startMsg.innerText="✔ Face capture active – look into camera";
+   startMsg.innerText="Face capture active - look into camera";
+   startMsg.style.color = "#4caf50";
  } else {
    autoEnabled=false;
-   startMsg.innerText="📌 Enter Enrollment & Name first";
+   startMsg.innerText="Enter Enrollment & Name first";
+   startMsg.style.color = "#d14";
  }
 }
 enroll.oninput=nameInput.oninput=enableDetection;
@@ -103,7 +197,7 @@ navigator.mediaDevices.getUserMedia({video:true}).then(stream=>{
 const faceMesh=new FaceMesh({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}`});
 faceMesh.setOptions({maxNumFaces:1,refineLandmarks:true,minDetectionConfidence:0.6,minTrackingConfidence:0.6});
 faceMesh.onResults(res=>{
- if(!autoEnabled || photoTaken) return; // ❗ prevents repeated captures
+ if(!autoEnabled || photoTaken) return;
 
  if(res.multiFaceLandmarks.length){
    stable++;
@@ -114,7 +208,11 @@ faceMesh.onResults(res=>{
       stable=0;
       autoCapture();
    }
- } else { stable=0; }
+ } else { 
+   stable=0;
+   camBox.classList.remove("active");
+   camBox.classList.add("idle");
+ }
 });
 
 /* Auto countdown */
@@ -148,31 +246,74 @@ function capture(){
  previewImg.src=captured;
  previewBox.style.display="block";
 
- msg.innerText="✔ Image Captured";
- photoTaken=true;           // << stops repeated auto capture
+ msg.innerText="Image Captured";
+ msg.style.color = "green";
+ photoTaken=true;
 }
 
 /* Save Voter */
 reg.onclick=async()=>{
  let e=enroll.value.trim(),n=nameInput.value.trim();
 
- if(!e||!n) return msg.innerText="⚠ Enter details!";
- if(!captured) return msg.innerText="⚠ Capture photo first!";
+ if(!e||!n){
+   msg.innerText="Enter all details!";
+   msg.style.color = "red";
+   return;
+ }
+ if(!captured){
+   msg.innerText="Capture photo first!";
+   msg.style.color = "red";
+   return;
+ }
+ if(!selectedElectionId){
+   msg.innerText="Select an election!";
+   msg.style.color = "red";
+   return;
+ }
+
+ msg.innerText="Registering voter...";
+ msg.style.color = "blue";
 
  let fd=new FormData();
  fd.append("enrollment",e);
  fd.append("name",n);
  fd.append("image",captured);
+ fd.append("election_id", selectedElectionId);
 
- let res=await fetch("/admin/register_voter_camera",{
-  method:"POST",
-  headers:{Authorization:"Bearer "+localStorage.getItem("admin_token")},
-  body:fd
- });
+ try {
+   let res=await fetch("/admin/register_voter_camera",{
+     method:"POST",
+     headers:{Authorization:"Bearer "+token},
+     body:fd
+   });
 
- let d=await res.json().catch(()=>({error:"Invalid response"}));
- msg.innerText=res.ok?"🎉 Voter Registered Successfully!":"❌ "+d.error;
+   let d=await res.json().catch(()=>({error:"Invalid response"}));
+   
+   if(res.ok){
+     msg.innerText="Voter Registered Successfully!";
+     msg.style.color = "green";
+     
+     // Reset form
+     enroll.value = "";
+     nameInput.value = "";
+     captured = null;
+     photoTaken = false;
+     previewBox.style.display = "none";
+     autoEnabled = false;
+     startMsg.innerText = "Enter Enrollment & Name first";
+     startMsg.style.color = "#d14";
+   } else {
+     msg.innerText = d.error || "Registration failed";
+     msg.style.color = "red";
+   }
+ } catch(err) {
+   msg.innerText = "Network error: " + err.message;
+   msg.style.color = "red";
+ }
 };
+
+/* Initialize */
+loadElections();
 </script>
 
 </body>
