@@ -1,4 +1,7 @@
 # backend/models.py
+import os
+from dotenv import load_dotenv
+
 from sqlalchemy import create_engine, Column, Integer, String, DateTime, Boolean, Text, Enum as SQLEnum
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
@@ -7,14 +10,16 @@ from datetime import datetime
 import urllib.parse
 import enum
 
+load_dotenv()
+
 # ---------------------------------------------------------
 #   DATABASE CONFIG
 # ---------------------------------------------------------
-MYSQL_USER = "root"
-MYSQL_PASSWORD = "admin123"
-MYSQL_HOST = "127.0.0.1"
-MYSQL_PORT = "3306"
-MYSQL_DB = "decentralised_voting"
+MYSQL_USER = os.getenv("MYSQL_USER", "root")
+MYSQL_PASSWORD = os.getenv("MYSQL_PASSWORD", "admin123")
+MYSQL_HOST = os.getenv("MYSQL_HOST", "127.0.0.1")
+MYSQL_PORT = os.getenv("MYSQL_PORT", "3306")
+MYSQL_DB = os.getenv("MYSQL_DB", "decentralised_voting")
 
 encoded_pass = urllib.parse.quote_plus(MYSQL_PASSWORD)
 
